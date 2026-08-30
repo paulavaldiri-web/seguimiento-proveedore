@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Órdenes de compra pendientes de entrega</title>
+<style>
+  :root{
+    --accent:#1f4b8f;
+    --ink:#1b2330;
+    --ink-soft:#6b7686;
+    --line:#dfe3e9;
+    --line-strong:#9aa4b0;
+    --bg:#faf9f5;
+    --verde:#1d7a3d; --verde-bg:#f7fcf9; --verde-sel:#eaf6ee; --verde-fg:#155c2e;
+    --ambar:#a9700a; --ambar-bg:#fffcf6; --ambar-sel:#fdf3e2; --ambar-fg:#835507;
+    --rojo:#c0392b; --rojo-bg:#fdf8f7; --rojo-sel:#fbeae7; --rojo-fg:#96271b;
+    --none:#c8cfda;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Calibri,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+  }
+  .wrap{max-width:1600px;margin:0 auto;padding:22px 20px 60px;}
+
+  .header{
+    display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:flex-end;
+    padding-bottom:14px;border-bottom:2px solid var(--accent);
+  }
+  .eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;}
+  h1{font-size:26px;font-weight:700;line-height:1.2;margin:3px 0 0;}
+  .meta{font-size:13px;color:var(--ink-soft);text-align:right;}
+
+  .summary{margin:18px 0 10px;font-size:15px;font-weight:700;}
+  .badge-row{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:0 0 12px;font-size:12.5px;}
+  .badge-row span{font-weight:600;}
+  .lbl{color:#5b6675;}
+  .g-verde{color:var(--verde);} .g-ambar{color:var(--ambar);} .g-rojo{color:var(--rojo);}
+
+  .state{padding:60px 20px;text-align:center;color:var(--ink-soft);font-size:14px;}
+  .state.err{color:var(--rojo);}
+
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line-strong);font-size:13px;}
+  thead th{
+    padding:8px 6px;background:#eef1f5;font-size:12.5px;font-weight:700;text-align:center;
+    border-right:1px solid #c3cad3;border-bottom:1px solid var(--line-strong);
+  }
+  tbody td{padding:9px 8px;border-right:1px solid #e3e7ec;border-bottom:1px solid var(--line);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  .oc-cell{font-weight:600;}
+  .money{text-align:right;display:block;}
+  .atraso{font-size:11px;color:#8590a0;}
+
+  select.causal{
+    width:100%;border:1.5px solid var(--none);background:#fff;color:var(--ink-soft);
+    border-radius:5px;padding:7px 6px;font-size:12.5px;font-weight:500;cursor:pointer;
+  }
+  select.causal.sev-verde{border-color:var(--verde);background:var(--verde-sel);color:var(--verde-fg);}
+  select.causal.sev-ambar{border-color:var(--ambar);background:var(--ambar-sel);color:var(--ambar-fg);}
+  select.causal.sev-rojo{border-color:var(--rojo);background:var(--rojo-sel);color:var(--rojo-fg);}
+
+  .fecha-row{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:11.5px;color:#5b6675;}
+  .fecha-row input{flex:1;border:1px solid #c8cfda;border-radius:4px;padding:4px 5px;font-size:11.5px;}
+
+  .obs-input{width:100%;border:1px solid var(--line);border-radius:5px;padding:8px 7px;font-size:12.5px;background:#fff;}
+
+  .footer-bar{
+    position:sticky;bottom:0;margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:10px;
+    padding:13px 16px;display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;
+    box-shadow:0 -2px 10px rgba(27,35,48,.06);
+  }
+  .aviso{font-size:13px;font-weight:500;}
+  button.cta{
+    border:none;border-radius:7px;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer;
+    background:var(--accent);color:#fff;
+  }
+  button.cta:disabled{background:#e6e9ee;color:#a3abb8;cursor:not-allowed;}
+
+  .modal-bg{position:fixed;inset:0;background:rgba(20,26,36,.5);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50;}
+  .modal{background:#fff;border-radius:12px;max-width:480px;width:100%;padding:26px;box-shadow:0 18px 50px rgba(0,0,0,.28);}
+  .modal h2{font-size:20px;margin:0 0 6px;}
+  .modal p{font-size:13.5px;color:#5b6675;margin:0;}
+  .modal button.close{border:none;background:transparent;color:#5b6675;font-size:14px;font-weight:600;cursor:pointer;margin-top:18px;float:right;}
+
+  @media (max-width:1150px){
+    table, thead{display:none;}
+    .cards{display:flex;flex-direction:column;gap:12px;}
+    .card{background:#fff;border:1px solid var(--line);border-left:4px solid var(--none);border-radius:9px;padding:13px 14px;}
+    .card.sev-verde{border-left-color:var(--verde);}
+    .card.sev-ambar{border-left-color:var(--ambar);}
+    .card.sev-rojo{border-left-color:var(--rojo);}
+    .card-top{display:flex;justify-content:space-between;font-weight:700;font-size:15px;}
+    .card-meta{font-size:13px;color:#5b6675;line-height:1.65;margin-top:2px;}
+    .card select.causal{margin-top:11px;padding:11px 9px;font-size:14px;}
+    .card .obs-input{margin-top:8px;padding:11px;font-size:14px;}
+  }
+  @media (min-width:1151px){ .cards{display:none;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div>
+      <div class="eyebrow">Compras · Seguimiento de proveedores</div>
+      <h1>Órdenes de compra pendientes de entrega</h1>
+    </div>
+    <div class="meta" id="metaInfo">Cargando...</div>
+  </div>
+
+  <div id="content"><div class="state" id="loadingState">Cargando tus órdenes...</div></div>
+
+  <div class="footer-bar" id="footerBar" style="display:none">
+    <div class="aviso" id="aviso"></div>
+    <button class="cta" id="enviarBtn">Enviar novedades</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalBg" style="display:none">
+  <div class="modal">
+    <h2>Respuestas enviadas</h2>
+    <p id="modalResumen"></p>
+    <button class="close" id="cerrarModal">Cerrar</button>
+  </div>
+</div>
+
+<script>
+// ── Config: reemplaza por las URLs reales de tus webhooks n8n ──
+const N8N_BASE = "https://TU-INSTANCIA-N8N/webhook";
+const CONSULTAR_URL = N8N_BASE + "/consultar-lote";
+const REGISTRAR_URL = N8N_BASE + "/registrar-respuestas";
+
+const params = new URLSearchParams(window.location.search);
+const LOTE = params.get("lote") || "";
+const TOKEN = params.get("token") || "";
+
+const SEV = {
+  "En tránsito": "verde",
+  "Reprogramada por proveedor": "verde",
+  "Montada fuera de frecuencia": "ambar",
+  "Agotados de proveedor": "ambar",
+  "Nevera dañada": "ambar",
+  "Lead time mal configurado": "ambar",
+  "Monto mínimo de pedido": "ambar",
+  "Novedades logísticas": "ambar",
+  "La orden no viajó": "rojo",
+  "Rechazada por la tienda": "rojo",
+  "Bloqueo por cartera": "rojo",
+  "Sin justificación del proveedor": "rojo"
+};
+const CON_FECHA = ["En tránsito", "Reprogramada por proveedor", "Novedades logísticas"];
+
+let rows = [];
+
+function money(n){ return "$" + Math.round(n||0).toLocaleString("en-US"); }
+
+function causalSelectHTML(row){
+  const groups = [
+    ["En curso (verde)", ["En tránsito","Reprogramada por proveedor"]],
+    ["Con novedad (ámbar)", ["Montada fuera de frecuencia","Agotados de proveedor","Nevera dañada","Lead time mal configurado","Monto mínimo de pedido","Novedades logísticas"]],
+    ["No se entregará (rojo)", ["La orden no viajó","Rechazada por la tienda","Bloqueo por cartera","Sin justificación del proveedor"]]
+  ];
+  let html = '<option value="">— Seleccionar causal —</option>';
+  groups.forEach(([label, opts]) => {
+    html += `<optgroup label="${label}">` + opts.map(o =>
+      `<option value="${o}" ${row.estado===o?'selected':''}>${o}</option>`
+    ).join('') + '</optgroup>';
+  });
+  return html;
+}
+
+function render(){
+  const content = document.getElementById('content');
+  const total = rows.reduce((a,r)=>a+(r.costo||0),0);
+  const pendientes = rows.filter(r=>!r.estado).length;
+  const count = sev => rows.filter(r=>SEV[r.estado]===sev).length;
+
+  let html = `
+    <div class="summary">Total de órdenes: ${rows.length} &nbsp;|&nbsp; Costo total: ${money(total)} &nbsp;|&nbsp;
+      <span style="color:${pendientes? '#c0392b':'#1d7a3d'}">Sin responder: ${pendientes}</span></div>
+    <div class="badge-row">
+      <span class="lbl">Clasificadas:</span>
+      <span class="g-verde">● en curso ${count('verde')}</span>
+      <span class="g-ambar">● con novedad ${count('ambar')}</span>
+      <span class="g-rojo">● no se entregará ${count('rojo')}</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>N° OC</th><th>Proveedor</th><th>Cód. Prov.</th><th>Fecha Emisión</th><th>Cód. Tienda</th>
+        <th>Tienda</th><th>Estado</th><th>Costo</th><th>Fecha Est. Entrega</th><th>Ciudad</th>
+        <th style="background:#e4ebf5">Causal real</th><th style="background:#e4ebf5">Observación</th>
+      </tr></thead>
+      <tbody>` +
+    rows.map((r,i) => {
+      const sev = SEV[r.estado];
+      return `<tr>
+        <td class="oc-cell">${r.oc}</td><td>${r.prov}</td><td>${r.provCod}</td><td>${r.emision}</td>
+        <td>${r.tiendaCod}</td><td>${r.tienda}</td><td>${r.sistema}</td>
+        <td><span class="money">${money(r.costo)}</span></td>
+        <td>${r.fechaEst}</td><td>${r.ciudad}</td>
+        <td>
+          <select class="causal ${sev?'sev-'+sev:''}" data-i="${i}" onchange="onEstado(${i}, this.value)">
+            ${causalSelectHTML(r)}
+          </select>
+          ${CON_FECHA.includes(r.estado) ? `<div class="fecha-row"><span>Nueva fecha</span><input type="date" value="${r.fechaNueva||''}" onchange="onFecha(${i}, this.value)"></div>` : ''}
+        </td>
+        <td><input class="obs-input" value="${r.obs||''}" placeholder="Guía, contacto, detalle…" onchange="onObs(${i}, this.value)"></td>
+      </tr>`;
+    }).join('') +
+    `</tbody></table>
+    <div class="cards">` +
+    rows.map((r,i) => {
+      const sev = SEV[r.estado];
+      return `<div class="card ${sev?'sev-'+sev:''}">
+        <div class="card-top"><div>OC ${r.oc}</div></div>
+        <div class="card-meta">${r.prov} (${r.provCod}) · ${r.sistema}<br>Tienda ${r.tiendaCod} · ${r.tienda} · ${r.ciudad}<br>
+        Emisión ${r.emision} · Est. entrega <b>${r.fechaEst}</b><br>Costo <b>${money(r.costo)}</b></div>
+        <select class="causal ${sev?'sev-'+sev:''}" onchange="onEstado(${i}, this.value)">${causalSelectHTML(r)}</select>
+        ${CON_FECHA.includes(r.estado) ? `<div class="fecha-row"><span>Nueva fecha</span><input type="date" value="${r.fechaNueva||''}" onchange="onFecha(${i}, this.value)"></div>` : ''}
+        <input class="obs-input" value="${r.obs||''}" placeholder="Observación: guía, contacto, detalle…" onchange="onObs(${i}, this.value)">
+      </div>`;
+    }).join('') +
+    `</div>`;
+
+  content.innerHTML = html;
+
+  document.getElementById('footerBar').style.display = 'flex';
+  document.getElementById('aviso').textContent = pendientes
+    ? `Faltan ${pendientes} ${pendientes===1?'orden':'órdenes'} sin causal asignada`
+    : `Las ${rows.length} órdenes tienen causal — listo para enviar`;
+  document.getElementById('aviso').style.color = pendientes ? '#c0392b' : '#1d7a3d';
+  const btn = document.getElementById('enviarBtn');
+  btn.disabled = rows.length === 0 || pendientes > 0;
+}
+
+window.onEstado = (i, v) => {
+  rows[i].estado = v;
+  rows[i].fechaNueva = CON_FECHA.includes(v) ? (rows[i].fechaNueva || '') : '';
+  render();
+};
+window.onFecha = (i, v) => { rows[i].fechaNueva = v; };
+window.onObs = (i, v) => { rows[i].obs = v; };
+
+async function cargarLote(){
+  const meta = document.getElementById('metaInfo');
+  if(!LOTE || !TOKEN){
+    document.getElementById('content').innerHTML = '<div class="state err">Este link no incluye un lote válido. Pide al equipo de Compras que reenvíe el correo.</div>';
+    meta.textContent = '';
+    return;
+  }
+  try{
+    const res = await fetch(`${CONSULTAR_URL}?lote=${encodeURIComponent(LOTE)}&token=${encodeURIComponent(TOKEN)}`);
+    if(!res.ok){
+      document.getElementById('content').innerHTML = '<div class="state err">El link venció o no es válido. Pide al equipo de Compras que reenvíe el correo.</div>';
+      meta.textContent = '';
+      return;
+    }
+    const data = await res.json();
+    rows = (Array.isArray(data) ? data : (data.rows || [])).map(r => ({
+      oc: r.oc, prov: r.prov, provCod: r.provCod, emision: r.emision,
+      tiendaCod: r.tiendaCod, tienda: r.tienda, sistema: r.sistema || r.estado_sistema || '',
+      costo: Number(r.costo)||0, fechaEst: r.fechaEst, ciudad: r.ciudad,
+      estado: '', fechaNueva: '', obs: ''
+    }));
+    meta.textContent = `Reporte diario · ${rows.length} órdenes`;
+    render();
+  }catch(e){
+    document.getElementById('content').innerHTML = '<div class="state err">No se pudo conectar. Intenta de nuevo en unos minutos.</div>';
+    meta.textContent = '';
+  }
+}
+
+document.getElementById('enviarBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('enviarBtn');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+  try{
+    const res = await fetch(REGISTRAR_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        lote: LOTE, token: TOKEN,
+        respuestas: rows.map(r => ({ oc:r.oc, estado:r.estado, fechaNueva:r.fechaNueva, obs:r.obs }))
+      })
+    });
+    const total = rows.reduce((a,r)=>a+(r.costo||0),0);
+    if(res.ok){
+      document.getElementById('modalResumen').textContent = `${rows.length} órdenes · ${money(total)} · registradas en el Sheet de Compras.`;
+    } else {
+      document.getElementById('modalResumen').textContent = 'Hubo un problema registrando tus respuestas. Vuelve a intentar en unos minutos.';
+    }
+    document.getElementById('modalBg').style.display = 'flex';
+  }catch(e){
+    document.getElementById('modalResumen').textContent = 'No se pudo conectar para enviar tus respuestas.';
+    document.getElementById('modalBg').style.display = 'flex';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Enviar novedades';
+});
+
+document.getElementById('cerrarModal').addEventListener('click', () => {
+  document.getElementById('modalBg').style.display = 'none';
+});
+
+cargarLote();
+</script>
+</body>
+</html>
