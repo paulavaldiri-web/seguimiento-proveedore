@@ -80,6 +80,8 @@
     padding:6px;background:var(--entregada-sel);cursor:pointer;
   }
   .adjunto-ok{font-size:11px;color:var(--entregada-fg);margin-top:4px;font-weight:600;}
+  .adjunto-row-op input[type=file]{border-style:solid;border-color:var(--line-strong);background:#fbfbfa;}
+  .adjunto-op-label{display:block;font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
 
   .fecha-row{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:11.5px;color:#5b6675;}
   .fecha-row input{flex:1;border:1px solid #c8cfda;border-radius:4px;padding:4px 5px;font-size:11.5px;}
@@ -185,6 +187,7 @@ const ETIQUETA_FECHA = {
   "Agotados de proveedor": "Fecha estimada de reposición"
 };
 const CON_ADJUNTO = ["Ya se entregó"];
+const CON_ADJUNTO_OPCIONAL = ["Rechazada por la tienda"];
 
 let rows = [];
 let filtroCiudadActual = "";
@@ -250,6 +253,11 @@ function render(){
             <input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="onAdjunto(${i}, this)">
             ${r.adjuntoNombre ? `<div class="adjunto-ok">✓ ${r.adjuntoNombre}</div>` : ''}
           </div>` : ''}
+          ${CON_ADJUNTO_OPCIONAL.includes(r.estado) ? `<div class="adjunto-row adjunto-row-op">
+            <label class="adjunto-op-label">Adjuntar evidencia (opcional)</label>
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="onAdjunto(${i}, this)">
+            ${r.adjuntoNombre ? `<div class="adjunto-ok">✓ ${r.adjuntoNombre}</div>` : ''}
+          </div>` : ''}
         </td>
         <td><input class="obs-input" value="${r.obs||''}" placeholder="Guía, contacto, detalle…" onchange="onObs(${i}, this.value)"></td>
       </tr>`;
@@ -265,6 +273,11 @@ function render(){
         <select class="causal ${sev?'sev-'+sev:''}" onchange="onEstado(${i}, this.value)">${causalSelectHTML(r)}</select>
         ${CON_FECHA.includes(r.estado) ? `<div class="fecha-row"><span>${ETIQUETA_FECHA[r.estado]}</span><input type="date" value="${r.fechaNueva||''}" onchange="onFecha(${i}, this.value)"></div>` : ''}
         ${CON_ADJUNTO.includes(r.estado) ? `<div class="adjunto-row">
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="onAdjunto(${i}, this)">
+          ${r.adjuntoNombre ? `<div class="adjunto-ok">✓ ${r.adjuntoNombre}</div>` : ''}
+        </div>` : ''}
+        ${CON_ADJUNTO_OPCIONAL.includes(r.estado) ? `<div class="adjunto-row adjunto-row-op">
+          <label class="adjunto-op-label">Adjuntar evidencia (opcional)</label>
           <input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="onAdjunto(${i}, this)">
           ${r.adjuntoNombre ? `<div class="adjunto-ok">✓ ${r.adjuntoNombre}</div>` : ''}
         </div>` : ''}
@@ -294,7 +307,7 @@ function render(){
 window.onEstado = (i, v) => {
   rows[i].estado = v;
   rows[i].fechaNueva = CON_FECHA.includes(v) ? (rows[i].fechaNueva || '') : '';
-  if (!CON_ADJUNTO.includes(v)) { rows[i].adjuntoBase64 = ''; rows[i].adjuntoNombre = ''; }
+  if (!CON_ADJUNTO.includes(v) && !CON_ADJUNTO_OPCIONAL.includes(v)) { rows[i].adjuntoBase64 = ''; rows[i].adjuntoNombre = ''; }
   render();
 };
 window.onFecha = (i, v) => { rows[i].fechaNueva = v; };
