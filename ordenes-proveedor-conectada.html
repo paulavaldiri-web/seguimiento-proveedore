@@ -16,6 +16,7 @@
     --verde:#1d7a3d; --verde-bg:#f7fcf9; --verde-sel:#eaf6ee; --verde-fg:#155c2e;
     --ambar:#a9700a; --ambar-bg:#fffcf6; --ambar-sel:#fdf3e2; --ambar-fg:#835507;
     --rojo:#c0392b; --rojo-bg:#fdf8f7; --rojo-sel:#fbeae7; --rojo-fg:#96271b;
+    --entregada:#2f6fed; --entregada-bg:#f5f8ff; --entregada-sel:#e8eefe; --entregada-fg:#1d4fc4;
     --none:#c8cfda;
   }
   *{box-sizing:border-box;}
@@ -62,6 +63,14 @@
   select.causal.sev-verde{border-color:var(--verde);background:var(--verde-sel);color:var(--verde-fg);}
   select.causal.sev-ambar{border-color:var(--ambar);background:var(--ambar-sel);color:var(--ambar-fg);}
   select.causal.sev-rojo{border-color:var(--rojo);background:var(--rojo-sel);color:var(--rojo-fg);}
+  select.causal.sev-entregada{border-color:var(--entregada);background:var(--entregada-sel);color:var(--entregada-fg);}
+
+  .adjunto-row{margin-top:6px;}
+  .adjunto-row input[type=file]{
+    width:100%;font-size:11.5px;border:1px dashed var(--entregada);border-radius:5px;
+    padding:6px;background:var(--entregada-sel);cursor:pointer;
+  }
+  .adjunto-ok{font-size:11px;color:var(--entregada-fg);margin-top:4px;font-weight:600;}
 
   .fecha-row{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:11.5px;color:#5b6675;}
   .fecha-row input{flex:1;border:1px solid #c8cfda;border-radius:4px;padding:4px 5px;font-size:11.5px;}
@@ -149,7 +158,8 @@ const SEV = {
   "La orden no viajó": "rojo",
   "Rechazada por la tienda": "rojo",
   "Bloqueo por cartera": "rojo",
-  "Sin justificación del proveedor": "rojo"
+  "Sin justificación del proveedor": "rojo",
+  "Ya se entregó": "entregada"
 };
 const CON_FECHA = ["En tránsito", "Reprogramada por proveedor", "Novedades logísticas", "Agotados de proveedor"];
 const ETIQUETA_FECHA = {
@@ -158,6 +168,7 @@ const ETIQUETA_FECHA = {
   "Novedades logísticas": "Nueva fecha",
   "Agotados de proveedor": "Fecha estimada de reposición"
 };
+const CON_ADJUNTO = ["Ya se entregó"];
 
 let rows = [];
 
@@ -167,7 +178,8 @@ function causalSelectHTML(row){
   const groups = [
     ["En curso (verde)", ["En tránsito","Reprogramada por proveedor"]],
     ["Con novedad (ámbar)", ["Montada fuera de frecuencia","Agotados de proveedor","Nevera dañada","Lead time mal configurado","Monto mínimo de pedido","Novedades logísticas"]],
-    ["No se entregará (rojo)", ["La orden no viajó","Rechazada por la tienda","Bloqueo por cartera","Sin justificación del proveedor"]]
+    ["No se entregará (rojo)", ["La orden no viajó","Rechazada por la tienda","Bloqueo por cartera","Sin justificación del proveedor"]],
+    ["Entregada", ["Ya se entregó"]]
   ];
   let html = '<option value="">— Seleccionar causal —</option>';
   groups.forEach(([label, opts]) => {
@@ -192,6 +204,7 @@ function render(){
       <span class="g-verde">● en curso ${count('verde')}</span>
       <span class="g-ambar">● con novedad ${count('ambar')}</span>
       <span class="g-rojo">● no se entregará ${count('rojo')}</span>
+      <span style="color:var(--entregada-fg)">● entregada ${count('entregada')}</span>
     </div>
     <table>
       <thead><tr>
@@ -212,6 +225,10 @@ function render(){
             ${causalSelectHTML(r)}
           </select>
           ${CON_FECHA.includes(r.estado) ? `<div class="fecha-row"><span>${ETIQUETA_FECHA[r.estado]}</span><input type="date" value="${r.fechaNueva||''}" onchange="onFecha(${i}, this.value)"></div>` : ''}
+          ${CON_ADJUNTO.includes(r.estado) ? `<div class="adjunto-row">
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="onAdjunto(${i}, this)">
+            ${r.adjuntoNombre ? `<div class="adjunto-ok">✓ ${r.adjuntoNombre}</div>` : ''}
+          </div>` : ''}
         </td>
         <td><input class="obs-input" value="${r.obs||''}" placeholder="Guía, contacto, detalle…" onchange="onObs(${i}, this.value)"></td>
       </tr>`;
@@ -226,6 +243,10 @@ function render(){
         Emisión ${r.emision} · Est. entrega <b>${r.fechaEst}</b><br>Costo <b>${money(r.costo)}</b></div>
         <select class="causal ${sev?'sev-'+sev:''}" onchange="onEstado(${i}, this.value)">${causalSelectHTML(r)}</select>
         ${CON_FECHA.includes(r.estado) ? `<div class="fecha-row"><span>${ETIQUETA_FECHA[r.estado]}</span><input type="date" value="${r.fechaNueva||''}" onchange="onFecha(${i}, this.value)"></div>` : ''}
+        ${CON_ADJUNTO.includes(r.estado) ? `<div class="adjunto-row">
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="onAdjunto(${i}, this)">
+          ${r.adjuntoNombre ? `<div class="adjunto-ok">✓ ${r.adjuntoNombre}</div>` : ''}
+        </div>` : ''}
         <input class="obs-input" value="${r.obs||''}" placeholder="Observación: guía, contacto, detalle…" onchange="onObs(${i}, this.value)">
       </div>`;
     }).join('') +
@@ -234,21 +255,45 @@ function render(){
   content.innerHTML = html;
 
   document.getElementById('footerBar').style.display = 'flex';
-  document.getElementById('aviso').textContent = pendientes
-    ? `Faltan ${pendientes} ${pendientes===1?'orden':'órdenes'} sin causal asignada`
-    : `Las ${rows.length} órdenes tienen causal — listo para enviar`;
-  document.getElementById('aviso').style.color = pendientes ? '#c0392b' : '#1d7a3d';
+  const sinAdjunto = rows.filter(r => CON_ADJUNTO.includes(r.estado) && !r.adjuntoBase64).length;
+  let mensajeAviso;
+  if (pendientes) {
+    mensajeAviso = `Faltan ${pendientes} ${pendientes===1?'orden':'órdenes'} sin causal asignada`;
+  } else if (sinAdjunto) {
+    mensajeAviso = `Faltan ${sinAdjunto} ${sinAdjunto===1?'orden':'órdenes'} marcadas "Ya se entregó" sin la factura/evidencia adjunta`;
+  } else {
+    mensajeAviso = `Las ${rows.length} órdenes tienen causal — listo para enviar`;
+  }
+  document.getElementById('aviso').textContent = mensajeAviso;
+  document.getElementById('aviso').style.color = (pendientes || sinAdjunto) ? '#c0392b' : '#1d7a3d';
   const btn = document.getElementById('enviarBtn');
-  btn.disabled = rows.length === 0 || pendientes > 0;
+  btn.disabled = rows.length === 0 || pendientes > 0 || sinAdjunto > 0;
 }
 
 window.onEstado = (i, v) => {
   rows[i].estado = v;
   rows[i].fechaNueva = CON_FECHA.includes(v) ? (rows[i].fechaNueva || '') : '';
+  if (!CON_ADJUNTO.includes(v)) { rows[i].adjuntoBase64 = ''; rows[i].adjuntoNombre = ''; }
   render();
 };
 window.onFecha = (i, v) => { rows[i].fechaNueva = v; };
 window.onObs = (i, v) => { rows[i].obs = v; };
+window.onAdjunto = (i, input) => {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    alert('El archivo pesa más de 5MB. Usa uno más liviano.');
+    input.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    rows[i].adjuntoBase64 = reader.result.split(',')[1]; // quita el prefijo data:...;base64,
+    rows[i].adjuntoNombre = file.name;
+    render();
+  };
+  reader.readAsDataURL(file);
+};
 
 async function cargarLote(){
   const meta = document.getElementById('metaInfo');
@@ -289,7 +334,10 @@ document.getElementById('enviarBtn').addEventListener('click', async () => {
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         lote: LOTE, token: TOKEN,
-        respuestas: rows.map(r => ({ oc:r.oc, estado:r.estado, fechaNueva:r.fechaNueva, obs:r.obs }))
+        respuestas: rows.map(r => ({
+          oc:r.oc, estado:r.estado, fechaNueva:r.fechaNueva, obs:r.obs,
+          adjuntoBase64: r.adjuntoBase64 || '', adjuntoNombre: r.adjuntoNombre || ''
+        }))
       })
     });
     const total = rows.reduce((a,r)=>a+(r.costo||0),0);
